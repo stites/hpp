@@ -10,7 +10,7 @@
     }                                                                          \
   } while (0)
 
-#define TILE_WIDTH = 16;
+#define TILE_WIDTH 16;
 
 // Compute C = A * B
 __global__ void matrixMultiplyShared(float *A, float *B, float *C, int numARows,
@@ -22,19 +22,22 @@ __global__ void matrixMultiplyShared(float *A, float *B, float *C, int numARows,
   __shared__ float ds_A[TILE_WIDTH][TILE_WIDTH];
   __shared__ float ds_B[TILE_WIDTH][TILE_WIDTH];
 
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
   int bx = blockIdx.x;
   int by = blockIdx.y;
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
 
-  int Col = blockDim.x * bx + tx;
   int Row = blockDim.y * by + ty;
+  int Col = blockDim.x * bx + tx;
 
   float Cvalue = 0.0;
 
-  for (int t = 0; t < numAColumns/TILE_WIDTH; ++t) {
-    ds_A[ty][tx] = A[Row * numAColumns + t * TILE_WIDTH + tx];
-    ds_B[ty][tx] = B[(t*TILE_WIDTH+ty)*numBColumns + Col];
+  int n = numAColumns;
+  int m = numBColumns;
+
+  for (int t = 0; t < n/TILE_WIDTH; ++t) {
+    ds_A[ty][tx] = A[Row * n + t * TILE_WIDTH + tx];
+    ds_B[ty][tx] = B[(t*TILE_WIDTH+ty)*m + Col];
     __syncthreads();
 
     for (int i = 0; i < TILE_WIDTH; ++i) {
