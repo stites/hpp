@@ -10,6 +10,8 @@
     }                                                                          \
   } while (0)
 
+#define TILE_WIDTH = 16;
+
 // Compute C = A * B
 __global__ void matrixMultiplyShared(float *A, float *B, float *C, int numARows,
                                      int numAColumns, int numBRows,
@@ -17,17 +19,31 @@ __global__ void matrixMultiplyShared(float *A, float *B, float *C, int numARows,
                                      int numCColumns) {
   //@@ Insert code to implement matrix multiplication here
   //@@ You have to use shared memory for this MP
-  int Col = blockDim.x*blockIdx.x + threadIdx.x;
-  int Row = blockDim.y*blockIdx.y + threadIdx.y;
+  __shared__ float ds_A[TILE_WIDTH][TILE_WIDTH];
+  __shared__ float ds_B[TILE_WIDTH][TILE_WIDTH];
 
-  if ((Row < numCRows) && (Col < numCColumns)){
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
 
-    float Cvalue = 0.0;
-    for (int i = 0; i < numAColumns; ++i) {
-      Cvalue += A[Row*numAColumns+i] * B[Col+i*numBColumns];
+  int Col = blockDim.x * bx + tx;
+  int Row = blockDim.y * by + ty;
+
+  float Cvalue = 0.0;
+
+  for (int t = 0; t < numAColumns/TILE_WIDTH; ++t) {
+    ds_A[ty][tx] = A[Row * numAColumns + t * TILE_WIDTH + tx];
+    ds_B[ty][tx] = B[(t*TILE_WIDTH+ty)*numBColumns + Col];
+    __syncthreads();
+
+    for (int i = 0; i < TILE_WIDTH; ++i) {
+      Cvalue += ds_A[ty][i] * ds_B[i][tx];
     }
-    C[Row*numBColumns+Col] = Cvalue;
+    __syncthreads();
+
   }
+  C[Row*numBColumns+Col] = Cvalue;
 }
 
 int main(int argc, char **argv) {
@@ -89,8 +105,10 @@ int main(int argc, char **argv) {
   wbTime_stop(GPU, "Copying input memory to the GPU.");
 
   //@@ Initialize the grid and block dimensions here
-  dim3 dimBlock((numARows-1)/256+1, (numBColumns-1)/256+1, 1);
-  dim3 dimGrid(256, 256, 1);
+  int DIMBLOCK_X = (numARows-1)/TILE_WIDTH+1;
+  int DIMBLOCK_Y = (nnumBColumns-1)/TILE_WIDTH+1;
+  dim3 dimBlock(DIMBLOCK_X, DIMBLOCK_Y, 1);
+  dim3 dimGrid(TILE_WIDTH, TILE_WIDTH, 1);
 
 
   wbTime_start(Compute, "Performing CUDA computation");
