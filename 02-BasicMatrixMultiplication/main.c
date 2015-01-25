@@ -49,15 +49,15 @@ int main(int argc, char **argv) {
   args = wbArg_read(argc, argv);
 
   wbTime_start(Generic, "Importing data and creating memory on host");
-  hostA =
-    ( float * )wbImport(wbArg_getInputFile(args, 0), &numARows, &numAColumns);
-  hostB =
-    ( float * )wbImport(wbArg_getInputFile(args, 1), &numBRows, &numBColumns);
-  //@@ Set numCRows and numCColumns
-  numCRows = 0;
-  numCColumns = 0;
 
+  hostA =(float *)wbImport(wbArg_getInputFile(args,0), &numARows, &numAColumns);
+  hostB =(float *)wbImport(wbArg_getInputFile(args,1), &numBRows, &numBColumns);
+  //@@ Set numCRows and numCColumns
+  numCRows = numARows;
+  numCColumns = numBColumns;
   //@@ Allocate the hostC matrix
+  hostC =(float *)malloc(sizeof(float) * numCRows * numCColumns);
+
   wbTime_stop(Generic, "Importing data and creating memory on host");
 
   wbLog(TRACE, "The dimensions of A are ", numARows, " x ", numAColumns);
