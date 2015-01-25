@@ -65,10 +65,9 @@ int main(int argc, char **argv) {
 
   wbTime_start(GPU, "Allocating GPU memory.");
   //@@ Allocate GPU memory here
-  wbCheck(numARows*numAColumns*sizeof(float));
-  sizeA = numARows*numAColumns*sizeof(float);
-  sizeB = numBRows*numBColumns*sizeof(float);
-  sizeC = numCRows*numCColumns*sizeof(float);
+  int sizeA = numARows*numAColumns*sizeof(float);
+  int sizeB = numBRows*numBColumns*sizeof(float);
+  int sizeC = numCRows*numCColumns*sizeof(float);
 
 
   cudaMalloc((void**)&deviceA, sizeA);
