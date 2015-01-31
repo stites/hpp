@@ -11,6 +11,7 @@
 
 #define Mask_width  5
 #define Mask_radius Mask_width/2
+#define Channels 3
 
 //@@ INSERT CODE HERE
 __global__ void convolution_1D_basic_kernel(float *N, float *M, float *P,
@@ -24,6 +25,31 @@ __global__ void convolution_1D_basic_kernel(float *N, float *M, float *P,
     }
   }
   P[i] = P_value;
+  /*
+  def clamp(x, start, end)
+    return min(max(x, start), end)
+  end
+  for i from 0 to height do
+    for j from 0 to width do
+      for k from 0 to channels
+        acc := 0
+        for y from -maskRadius to maskRadius do
+          for x from -maskRadius to maskRadius do
+            xOffset := j + x
+            yOffset := i + y
+            if xOffset >= 0 && xOffset < width &&
+               yOffset >= 0 && yOffset < height then
+              imagePixel := I[(yOffset * width + xOffset) * channels + k]
+              maskValue := K[(y+maskRadius)*maskWidth+x+maskRadius]
+              acc += imagePixel * maskValue
+            end
+          end
+        end
+        # pixels are in the range of 0 to 1
+        P[(i * width + j)*channels + k] = clamp(acc, 0, 1)
+      end
+    end
+  */
 }
 
 int main(int argc, char* argv[]) {
