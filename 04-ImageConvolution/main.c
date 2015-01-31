@@ -12,20 +12,32 @@
 #define Mask_width  5
 #define Mask_radius Mask_width/2
 #define TILE_WIDTH 16
-#define Channels 3
 
 //@@ INSERT CODE HERE
-__global__ void convolution_1D_basic_kernel(float *N, float *M, float *P,
-                                            int Mask_Width, int Width){
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  float P_value = 0;
-  int N_start_point = i - (Mask_Width/2);
-  for (int j = 0; j < Mask_Width; j++) {
-    if (N_start_point + j >= 0 && N_start_point + j < Width) {
-      P_value += N[N_start_point + j]*M[j];
-    }
+__global__ void convolution_2d (float *N, float *M, float *P,
+                                int Channels, int Mask_Width, int Width){
+  int bx  = blockIdx.x;
+  int by  = blockIdx.y;
+  int bdx = blockDim.x;
+  int bdy = blockDim.y;
+  int tx  = threadIdx.x;
+  int ty  = threadIdx.y;
+  int n   = Mask_Width / 2;
+  int rIdx = by * bdx + ty;
+  int cIdx = bx * bdy + tx;
+
+  int halo_index_left = (bx - 1) * bdx + tx;
+  int inputWidth      = TILE_WIDTH + Mask_width - 1;
+
+  float pValue = 0.0;
+
+  // share memory
+  __shared__ float N_ds[TILE_WIDTH][TILE_WIDTH];
+  if (tx >= bdx - n) {
+    N_ds[rIdx][cIdx] = N[i];
   }
-  P[i] = P_value;
+  __syncthreads();
+
   /*
   def clamp(x, start, end)
     return min(max(x, start), end)
