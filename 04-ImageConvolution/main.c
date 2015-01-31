@@ -11,6 +11,7 @@
 
 #define Mask_width  5
 #define Mask_radius Mask_width/2
+#define TILE_WIDTH 16
 #define Channels 3
 
 //@@ INSERT CODE HERE
@@ -113,6 +114,15 @@ int main(int argc, char* argv[]) {
 
     wbTime_start(Compute, "Doing the computation on the GPU");
     //@@ INSERT CODE HERE
+    dim3 dimGrid(imageWidth/TILE_WIDTH, imageHeight/TILE_WIDTH, 1);
+    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, 1);
+    convolution_2D <<<dimGrid, dimBlock>>> (deviceInputImageData,
+        deviceMaskData,
+        deviceOutputImageData,
+        imageChannels,
+        imageWidth,
+        imageHeight);
+    // init kernel
     wbTime_stop(Compute, "Doing the computation on the GPU");
 
 
