@@ -1,6 +1,5 @@
 #include    <wb.h>
 
-
 #define wbCheck(stmt) do {                                                    \
         cudaError_t err = stmt;                                               \
         if (err != cudaSuccess) {                                             \
@@ -14,7 +13,18 @@
 #define Mask_radius Mask_width/2
 
 //@@ INSERT CODE HERE
-
+__global__ void convolution_1D_basic_kernel(float *N, float *M, float *P,
+                                            int Mask_Width, int Width){
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  float P_value = 0;
+  int N_start_point = i - (Mask_Width/2);
+  for (int j = 0; j < Mask_Width; j++) {
+    if (N_start_point + j >= 0 && N_start_point + j < Width) {
+      P_value += N[N_start_point + j]*M[j];
+    }
+  }
+  P[i] = P_value;
+}
 
 int main(int argc, char* argv[]) {
     wbArg_t args;
