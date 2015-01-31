@@ -32,7 +32,7 @@ __global__ void convolution_2d (float *N, float *M, float *P,
   float pValue = 0.0;
 
   // share memory
-  __shared__ float N_ds[TILE_WIDTH][TILE_WIDTH];
+  __shared__ float N_ds[inputWidth][inputWidth];
   if (tx >= bdx - n) {
     N_ds[rIdx][cIdx] = N[i];
   }
