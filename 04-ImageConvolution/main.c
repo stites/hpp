@@ -12,7 +12,7 @@
 #define Mask_Width 5
 #define Mask_Radius Mask_Width/2
 #define Tile_Width 16
-#define Output_Width Tile_Width - Mask_Width + 1
+#define Output_Width (Tile_Width - Mask_Width + 1)
 #define Channels 3
 
 //@@ INSERT CODE HERE
