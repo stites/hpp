@@ -16,53 +16,68 @@
 //@@ INSERT CODE HERE
 __global__ void convolution_2d (float *N, float *M, float *P,
                                 int Channels, int Mask_Width, int Width){
+  // add short hand notation - maybe remove this later
   int bx  = blockIdx.x;
   int by  = blockIdx.y;
   int bdx = blockDim.x;
   int bdy = blockDim.y;
   int tx  = threadIdx.x;
   int ty  = threadIdx.y;
-  int n   = Mask_Width / 2;
-  int rIdx = by * bdx + ty;
-  int cIdx = bx * bdy + tx;
+  int x0 = bx * bdx + tx;
 
-  int halo_index_left = (bx - 1) * bdx + tx;
-  int inputWidth      = TILE_WIDTH + Mask_width - 1;
-
-  float pValue = 0.0;
-
-  // share memory
+  // allocate shared memory
   __shared__ float N_ds[inputWidth][inputWidth];
-  if (tx >= bdx - n) {
-    N_ds[rIdx][cIdx] = N[i];
+
+  // load the cache - check left halo condition
+  if (x0 - Mask_radius; < 0) {
+    N_ds[tx][ty] = 0;
+  } else {
+    N_ds[tx][ty] = N[x0 - Mask_radius];
   }
+
+  // load the cache - check right halo condition
+  if (x0 + Mask_radius; > Width - 1) {
+    N_ds[tx][ty] = 0;
+  } else {
+    N_ds[tx][ty] = N[x0 + Mask_radius];
+  }
+  // sync before moving on
   __syncthreads();
 
-  /*
-  def clamp(x, start, end)
-    return min(max(x, start), end)
-  end
-  for i from 0 to height do
-    for j from 0 to width do
-      for k from 0 to channels
-        acc := 0
-        for y from -maskRadius to maskRadius do
-          for x from -maskRadius to maskRadius do
-            xOffset := j + x
-            yOffset := i + y
-            if xOffset >= 0 && xOffset < width &&
-               yOffset >= 0 && yOffset < height then
-              imagePixel := I[(yOffset * width + xOffset) * channels + k]
-              maskValue := K[(y+maskRadius)*maskWidth+x+maskRadius]
+  // begin convolution logic:
+
+  for (int i = 0; i < Height; i++) {
+    for (int j = 0; j < Width; j++) {
+      for (int k = 0; k < Channels; k++) {
+        int acc = 0;
+        for (int y = -Mask_radius; y < Mask_radius; y++){
+          for (int x = -Mask_radius; x < Mask_radius; x++){
+            xOffset = j + x
+            yOffset = i + y
+            if ((xOffset >= 0) &&
+                (xOffset < Width) &&
+                (yOffset >= 0) &&
+                (yOffset < Height)) {
+              int imagePixel = N_ds[(yOffset * Width + xOffset) * channels + k]
+              int maskValue = M[(y+Mask_radius)*Mask_Width+x+Mask_radius]
               acc += imagePixel * maskValue
-            end
-          end
-        end
-        # pixels are in the range of 0 to 1
-        P[(i * width + j)*channels + k] = clamp(acc, 0, 1)
-      end
-    end
-  */
+            }
+          }
+        }
+      }
+      int mVal;
+      if (acc > 0) {
+        if (acc < 1) {
+          mVal = acc;
+        } else {
+          mVal = 1;
+        }
+      } else {
+        mVal = 0;
+      }
+      P[(i * width + j)*channels + k] = mVal;
+    }
+  }
 }
 
 int main(int argc, char* argv[]) {
