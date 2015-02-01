@@ -9,13 +9,22 @@
         }                                                                     \
     } while(0)
 
-#define Mask_width  5
-#define Mask_radius Mask_width/2
-#define TILE_WIDTH 16
+#define Mask_Width 5
+#define Mask_Radius Mask_Width/2
+#define Tile_Width 16
+#define Output_Width Tile_Width - Mask_Width + 1
+#define Channels 3
 
 //@@ INSERT CODE HERE
-__global__ void convolution_2d (float *N, float *M, float *P,
-                                int Channels, int Mask_Width, int Width){
+__device__ float clamp(float x, float start, float end){
+  return min(max(x, start), end);
+}
+
+__global__ void convolution_2D(float * inputImageData,
+                               float * outputImageData,
+                               const float * __restrict__ Mask,
+                               int imageWidth,
+                               int imageHeight) {
   // add short hand notation - maybe remove this later
   int bx  = blockIdx.x;
   int by  = blockIdx.y;
@@ -23,59 +32,42 @@ __global__ void convolution_2d (float *N, float *M, float *P,
   int bdy = blockDim.y;
   int tx  = threadIdx.x;
   int ty  = threadIdx.y;
-  int x0 = bx * bdx + tx;
+  int rowIdx_o = by * Output_Width + ty;
+  int colIdx_o = bx * Output_Width + tx;
+  int rowIdx_i = rowIdx_o - Mask_Radius;
+  int colIdx_i = colIdx_o - Mask_Radius;
+
+  float output[Channels] = {0.0f, 0.0f, 0.0f};
 
   // allocate shared memory
-  __shared__ float N_ds[inputWidth][inputWidth];
+  __shared__ float ds_input[Tile_Width][Tile_Width][Channels];
 
-  // load the cache - check left halo condition
-  if (x0 - Mask_radius; < 0) {
-    N_ds[tx][ty] = 0;
-  } else {
-    N_ds[tx][ty] = N[x0 - Mask_radius];
+  // load the cache - check halo conditions
+  if((rowIdx_i >= 0) && (rowIdx_i < imageHeight) && (colIdx_i >= 0) && (colIdx_i < imageWidth) ) {
+    for (int k = 0; k < Channels; k++)
+      ds_input[ty][tx][k] = inputImageData[(rowIdx_i * imageWidth + colIdx_i) * Channels + k];
+  } else{
+    for (int k = 0; k < Channels; k++)
+      ds_input[ty][tx][k] = 0.0f;
   }
 
-  // load the cache - check right halo condition
-  if (x0 + Mask_radius; > Width - 1) {
-    N_ds[tx][ty] = 0;
-  } else {
-    N_ds[tx][ty] = N[x0 + Mask_radius];
-  }
   // sync before moving on
   __syncthreads();
 
   // begin convolution logic:
+  if((ty < Output_Width) && (tx < Output_Width)){
+    for(int i = 0; i < Mask_Width; i++) {
+      for(int j = 0; j < Mask_Width; j++) {
+        for (int k = 0; k < Channels; k++)
+          output[k] += Mask[i * Mask_Width + j] * ds_input[i+ty][j+tx][k];
+      }
+    }
 
-  for (int i = 0; i < Height; i++) {
-    for (int j = 0; j < Width; j++) {
-      for (int k = 0; k < Channels; k++) {
-        int acc = 0;
-        for (int y = -Mask_radius; y < Mask_radius; y++){
-          for (int x = -Mask_radius; x < Mask_radius; x++){
-            xOffset = j + x
-            yOffset = i + y
-            if ((xOffset >= 0) &&
-                (xOffset < Width) &&
-                (yOffset >= 0) &&
-                (yOffset < Height)) {
-              int imagePixel = N_ds[(yOffset * Width + xOffset) * channels + k]
-              int maskValue = M[(y+Mask_radius)*Mask_Width+x+Mask_radius]
-              acc += imagePixel * maskValue
-            }
-          }
-        }
-      }
-      int mVal;
-      if (acc > 0) {
-        if (acc < 1) {
-          mVal = acc;
-        } else {
-          mVal = 1;
-        }
-      } else {
-        mVal = 0;
-      }
-      P[(i * width + j)*channels + k] = mVal;
+    __syncthreads();
+
+    if(rowIdx_o < imageHeight && colIdx_o < imageWidth){
+      for (int k = 0; k < Channels; k++)
+        outputImageData[(rowIdx_o * imageWidth + colIdx_o) * Channels + k] = clamp(output[k], 0, 1);
     }
   }
 }
@@ -141,15 +133,15 @@ int main(int argc, char* argv[]) {
 
     wbTime_start(Compute, "Doing the computation on the GPU");
     //@@ INSERT CODE HERE
-    dim3 dimGrid(imageWidth/TILE_WIDTH, imageHeight/TILE_WIDTH, 1);
-    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, 1);
-    convolution_2D <<<dimGrid, dimBlock>>> (deviceInputImageData,
-        deviceMaskData,
-        deviceOutputImageData,
-        imageChannels,
-        imageWidth,
-        imageHeight);
-    // init kernel
+    dim3 dimGrid((imageWidth-1)/Output_Width + 1, (imageHeight-1)/Output_Width + 1, 1);
+    dim3 dimBlock(Tile_Width, Tile_Width, 1);
+
+    convolution_2D<<<dimGrid, dimBlock>>>(deviceInputImageData,
+                                          deviceOutputImageData,
+                                          deviceMaskData,
+                                          imageWidth,
+                                          imageHeight);
+
     wbTime_stop(Compute, "Doing the computation on the GPU");
 
 
